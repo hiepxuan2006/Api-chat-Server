@@ -1,6 +1,6 @@
 const jwt = require("jsonwebtoken")
 
-const SECRET_KEY_DEFAULT = process.env.SECRET_KEY_TOKEN
+const SECRET_KEY_DEFAULT = "hiepxuan"
 const { getModel } = require("../connections/database")
 const getAccessToken = (req) => {
   const headerAuthor = (req.headers["authorization"] || "").trim()

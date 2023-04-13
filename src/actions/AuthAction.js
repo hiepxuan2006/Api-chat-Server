@@ -44,7 +44,7 @@ module.exports.loginAccount = async (args = {}) => {
       role: account.roles,
       is_admin: account.is_admin,
     },
-    process.env.SECRET_KEY_TOKEN,
+    "hiepxuan",
     {
       expiresIn: "1h",
     }
