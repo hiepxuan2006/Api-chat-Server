@@ -2,15 +2,15 @@ const falcon = require("../helpers/falcon")
 
 module.exports = async (io) => {
   let activeUsers = []
-  let a = await falcon.get("userOnline")
-  activeUsers = a ? JSON.parse(a) : []
+  // let a = await falcon.get("userOnlineDev")
+  // activeUsers = a ? JSON.parse(a) : []
 
-  if (!a) {
-    await falcon.set({
-      key: "userOnline",
-      value: JSON.stringify(activeUsers),
-    })
-  }
+  // if (!a) {
+  //   await falcon.set({
+  //     key: "userOnlineDev",
+  //     value: JSON.stringify(activeUsers),
+  //   })
+  // }
   console.log("active", activeUsers.length)
 
   io.emit("get-users", activeUsers)
@@ -26,10 +26,10 @@ module.exports = async (io) => {
         activeUsers.push({ userId: newUserId, socketId: socket.id })
       }
 
-      await falcon.set({
-        key: "userOnline",
-        value: JSON.stringify(activeUsers),
-      })
+      // await falcon.set({
+      //   key: "userOnlineDev",
+      //   value: JSON.stringify(activeUsers),
+      // })
       io.emit("get-users", activeUsers)
     })
     // //////////////
@@ -48,10 +48,10 @@ module.exports = async (io) => {
 
     socket.on("disconnect", async () => {
       activeUsers = activeUsers.filter((user) => user.socketId !== socket.id)
-      await falcon.set({
-        key: "userOnline",
-        value: JSON.stringify(activeUsers),
-      })
+      // await falcon.set({
+      //   key: "userOnlineDev",
+      //   value: JSON.stringify(activeUsers),
+      // })
       console.log("active", activeUsers.length)
       io.emit("get-users", activeUsers)
       socket.disconnect()
@@ -59,10 +59,10 @@ module.exports = async (io) => {
 
     socket.on("user-off", async (data) => {
       activeUsers = activeUsers.filter((user) => user.userId !== data)
-      await falcon.set({
-        key: "userOnline",
-        value: JSON.stringify(activeUsers),
-      })
+      // await falcon.set({
+      //   key: "userOnlineDev",
+      //   value: JSON.stringify(activeUsers),
+      // })
 
       io.emit("get-users", activeUsers)
     })
