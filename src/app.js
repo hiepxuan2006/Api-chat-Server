@@ -40,7 +40,7 @@ const io = new Server(
   server,
   {
     cors: {
-      origin: "*",
+      origin: "https://hiepxuan-profile.netlify.app",
     },
   },
   { pingTimeout: 60000 }
