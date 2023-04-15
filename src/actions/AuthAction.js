@@ -46,7 +46,7 @@ module.exports.loginAccount = async (args = {}) => {
     },
     "hiepxuan",
     {
-      expiresIn: "1h",
+      expiresIn: "1d",
     }
   )
   const { password, ...user } = account._doc
