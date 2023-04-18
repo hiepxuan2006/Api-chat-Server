@@ -15,11 +15,15 @@ router.get("/auth/authorization", Oauth.authorization, authCtrl.authorization)
 const messCtrl = require("./controllers/MessageController")
 
 router.post("/message/get-message", messCtrl.getChatsMessage)
+router.post("/message/get-message-room", messCtrl.getMessageRoom)
 router.post("/message/send-message", messCtrl.sendMessage)
+router.post("/message/new-chat", messCtrl.createNewChat)
 
 const accountCtrl = require("./controllers/AccountController")
 
 router.post("/search-account", accountCtrl.searchAccount)
+router.post("/get-chat-rooms", accountCtrl.getChats)
+router.post("/get-room", accountCtrl.getChatRoom)
 
 router.post("/upload", multer.single("image"), authCtrl.uploadCloud)
 module.exports = router

@@ -17,3 +17,17 @@ module.exports.searchAccount = async (req, res) => {
     sendError(req, res)
   }
 }
+
+module.exports.getChats = (req, res) => {
+  const { body } = req
+  AccountActions.getChats(body)
+    .then(sendSuccess(req, res))
+    .catch(sendError(req, res))
+}
+
+module.exports.getChatRoom = (req, res) => {
+  const { body } = req
+  AccountActions.getChatRoom(body)
+    .then(sendSuccess(req, res))
+    .catch(sendError(req, res))
+}

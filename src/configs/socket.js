@@ -1,5 +1,9 @@
 const falcon = require("../helpers/falcon")
-
+const { getModel } = require("../connections/database")
+const { default: mongoose } = require("mongoose")
+const Account = getModel("Account")
+const ChatMessage = getModel("ChatMessage")
+const ChatRoom = getModel("ChatRoom")
 module.exports = async (io) => {
   let activeUsers = []
   // let a = await falcon.get("userOnlineDev")
@@ -40,14 +44,14 @@ module.exports = async (io) => {
     socket.on("new-user-add", async (newUserId) => {
       console.log("active", activeUsers.length)
 
+      await Account.findOneAndUpdate(
+        { _id: newUserId },
+        { $set: { is_online: true } }
+      )
       if (!activeUsers.some((user) => user.userId === newUserId)) {
         activeUsers.push({ userId: newUserId, socketId: socket.id })
       }
 
-      // await falcon.set({
-      //   key: "userOnlineDev",
-      //   value: JSON.stringify(activeUsers),
-      // })
       io.emit("get-users", activeUsers)
     })
 
@@ -61,12 +65,20 @@ module.exports = async (io) => {
     })
 
     socket.on("disconnect", async () => {
+      const userDisconnect = activeUsers.filter(
+        (user) => user.socketId === socket.id
+      )
+
+      if (userDisconnect.length) {
+        await Account.findOneAndUpdate
+
+        await Account.findOneAndUpdate(
+          { _id: userDisconnect[0].userId },
+          { $set: { is_online: false } }
+        )
+      }
       activeUsers = activeUsers.filter((user) => user.socketId !== socket.id)
-      // await falcon.set({
-      //   key: "userOnlineDev",
-      //   value: JSON.stringify(activeUsers),
-      // })
-      console.log("active", activeUsers.length)
+
       io.emit("get-users", activeUsers)
       const { room, player } = deleteMember(socket.id)
       if (typeof room === "number") {
@@ -84,7 +96,7 @@ module.exports = async (io) => {
       socket.disconnect()
     })
 
-    socket.on("user-off", async (data) => {
+    socket.on("client-send-logout", async (data) => {
       activeUsers = activeUsers.filter((user) => user.userId !== data)
       // await falcon.set({
       //   key: "userOnlineDev",
@@ -157,7 +169,9 @@ module.exports = async (io) => {
       const { room, player } = deleteMember(data.idPlayer)
       if (typeof room === "number") {
         sortRoom(room)
-        arrMesRoom[room] = []
+        if (arrRoom[room].length === 0) {
+          arrMesRoom[room] = []
+        }
       }
       io.sockets.emit("clients-update-list-room", { arrRoom: arrRoom })
     })
@@ -169,9 +183,12 @@ module.exports = async (io) => {
       io.to(data.idRoomNumber + "").emit("server-send-message-game", mess)
     })
 
-    socket.on("user-leave-room", (data) => {
+    socket.on("client-leave-room-game", (data) => {
       deleteMember(data.idPlayer)
       sortRoom(data.idRoomNumber)
+      if (arrRoom[data.idRoomNumber].length === 0) {
+        arrMesRoom[data.idRoomNumber] = []
+      }
       io.to(data.idRoomNumber + "").emit("clients-get-new-player", {
         idPlayer: socket.id,
         listPlayer: arrRoom[data.idRoomNumber],
@@ -211,12 +228,99 @@ module.exports = async (io) => {
         winner: winner[0],
       })
     })
-  })
+    // ////////////end - game
 
-  const reloadStatus = (idRoomNumber) => {
-    arrStatusPlayer[idRoomNumber][0] == false
-    arrStatusPlayer[idRoomNumber][1] == false
-  }
+    // //////start - chat
+    socket.on("user-join-room", async (roomId, previousRoom = "default") => {
+      console.log(`A user joined chat room-${roomId}`)
+      socket.join(`chat-${roomId}`)
+      socket.leave(`chat-${previousRoom}`)
+      const messages = await ChatMessage.aggregate([
+        { $match: { chatId: new mongoose.Types.ObjectId(roomId) } },
+        {
+          $lookup: {
+            from: "accounts",
+            localField: "senderId",
+            foreignField: "_id",
+            as: "senderId",
+          },
+        },
+        {
+          $unwind: "$senderId",
+        },
+        {
+          $project: {
+            "senderId.password": 0,
+          },
+        },
+        {
+          $group: {
+            _id: { $dateToString: { format: "%Y-%m-%d ", date: "$createdAt" } },
+            list: { $push: "$$ROOT" },
+          },
+        },
+        { $sort: { _id: 1 } },
+      ])
+      io.to(`chat-${roomId}`).emit("server-send-new-message", messages)
+    })
+
+    socket.on("client-send-new-message", async ({ roomId, message }) => {
+      const newMessage = new ChatMessage(message)
+      const messageLast = await newMessage.save()
+      await ChatRoom.findOneAndUpdate(
+        { _id: roomId },
+        { $set: { last_message: messageLast, last_member: message.senderId } }
+      )
+      const messages = await ChatMessage.aggregate([
+        { $match: { chatId: new mongoose.Types.ObjectId(roomId) } },
+        {
+          $lookup: {
+            from: "accounts",
+            localField: "senderId",
+            foreignField: "_id",
+            as: "senderId",
+          },
+        },
+        {
+          $unwind: "$senderId",
+        },
+        {
+          $project: {
+            "senderId.password": 0,
+          },
+        },
+        {
+          $group: {
+            _id: { $dateToString: { format: "%Y-%m-%d ", date: "$createdAt" } },
+            list: { $push: "$$ROOT" },
+          },
+        },
+        { $sort: { _id: 1 } },
+      ])
+      io.to(`chat-${roomId}`).emit("server-send-new-message", messages)
+      socket.broadcast.emit("notifications", roomId)
+    })
+
+    socket.on(
+      "client-send-typing-message",
+      ({ roomId, senderId, isTyping }) => {
+        console.log("......", { roomId, senderId, isTyping })
+        io.to(`chat-${roomId}`).emit("server-send-user-typing", {
+          roomId,
+          senderId,
+          isTyping,
+        })
+      }
+    )
+
+    socket.on("client-send-logout", async (id) => {
+      await Account.findOneAndUpdate(
+        { _id: id },
+        { $set: { is_online: false } }
+      )
+    })
+    // ///end - chat
+  })
 
   const isPlaying = (userId, idRoomNumber, ready) => {
     let locationInRoom = null

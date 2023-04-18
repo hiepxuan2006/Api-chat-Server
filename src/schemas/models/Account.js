@@ -51,7 +51,11 @@ module.exports = new Schema(
       default: "inactive",
       index: true,
     },
-
+    is_online: {
+      type: Boolean,
+      index: true,
+      default: false,
+    },
     address: {
       type: String,
       trim: true,
